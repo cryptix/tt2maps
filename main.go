@@ -2,37 +2,42 @@ package tt2maps
 
 import (
 	"fmt"
+	"html/template"
 	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/cryptix/go-tenten"
 )
 
-const (
-	devLat = 1
-	devLon = 1
-
-	meanLat = 1
-	meanLon = 1
-)
-
 func init() {
-	http.HandleFunc("/", helloHandler)
-	http.HandleFunc("/rand", randHandler)
-	http.HandleFunc("/redir", redirHandler)
+	rand.Seed(time.Now().Unix())
+
+	http.HandleFunc("/", somewhereHandler)
 }
 
 func helloHandler(rw http.ResponseWriter, req *http.Request) {
 	fmt.Fprintln(rw, "Hello, world!")
 }
 
-func randHandler(rw http.ResponseWriter, req *http.Request) {
-	lat := rand.NormFloat64()*devLat + meanLat
-	lon := rand.NormFloat64()*devLon + meanLon
+var somewhereTmpl = template.Must(template.New("somewhere").Parse(`
+	<h1>Hello</h1>
+	<p>({{.lat}},{{.lon}}) is: {{.tt}}</p>
+	<h4>Take me there</h4>
+	<ul>
+		<li><a href="http://www.openstreetmap.org/#map=5/{{.lat}}/{{.lon}}">OpenStreetMap</a> </li>
+		<li><a href="http://maps.google.com/?q={{.lat}},{{.lon}}">Google Maps</a></li>
+	</ul>
+`))
 
-	fmt.Fprintf(rw, "Hello! (%.3f, %.3f) is %s\n", lat, lon, tenten.Encode(lat, lon))
-}
+func somewhereHandler(rw http.ResponseWriter, req *http.Request) {
+	lat := rand.Float64() * 180
+	lon := rand.Float64() * 360
+	tt := tenten.Encode(lat, lon)
 
-func redirHandler(rw http.ResponseWriter, req *http.Request) {
-	http.Redirect(rw, req, "http://maps.google.com/?q=10,10", http.StatusFound)
+	somewhereTmpl.Execute(rw, map[string]interface{}{
+		"lat": fmt.Sprintf("%.2f", lat),
+		"lon": fmt.Sprintf("%.2f", lon),
+		"tt":  tt,
+	})
 }
